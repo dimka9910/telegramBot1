@@ -2,6 +2,7 @@
 import config
 import telebot
 import random
+import time
 import utils
 import testNumFile
 import userSumFile
@@ -13,7 +14,7 @@ bot = telebot.TeleBot(config.token)
 
 
 @bot.message_handler(commands=['start'])
-def kek(message):
+def start(message):
     reset(message)
     bot.send_message(message.chat.id, 'Привет! Введи номер теста который хочешь пройти')
     testNumFile.set_test_num(message.chat.id, 0)
@@ -39,9 +40,11 @@ def test_selector(message):
     db_worker = SQLighter(config.database_name)
     if not message.text.isdigit():
         bot.send_message(message.chat.id, "Введи пожалуйста номер теста :)")
+        db_worker.close()
         return
     if int(message.text) > db_worker.test_len():
         bot.send_message(message.chat.id, "Такого номера нет в списке :(")
+        db_worker.close()
         return
     i = 0
     for row in (db_worker.select_test_code()):
@@ -49,18 +52,27 @@ def test_selector(message):
         if i == int(message.text):
             testNumFile.set_test_num(message.chat.id, int(row[0]))
             questionNumFile.set_question_num(message.chat.id, 1)
+            db_worker.close()
             check_answer(message)
-
+            return
 
 def question_handler(message):
-    db_worker = SQLighter(config.database_name)
-    t_num = testNumFile.get_test_num(message.chat.id)
-    q_num = questionNumFile.get_question_num(message.chat.id)
+    if message.text is None:
+        return
+
+    if message.text == '/reset' or message.text == '/start':
+        types.ReplyKeyboardRemove()
+        start(message)
+        return
 
     if not message.text.isdigit():
         bot.send_message(message.chat.id, "Введите число с клавиатуры")
         check_answer(message)
         return
+
+    db_worker = SQLighter(config.database_name)
+    t_num = testNumFile.get_test_num(message.chat.id)
+    q_num = questionNumFile.get_question_num(message.chat.id)
 
     i = 0
     k = '{}'.format(db_worker.select_question(t_num, q_num)[5])
@@ -68,6 +80,8 @@ def question_handler(message):
     for item in k.split(','):
         i += 1
         list_keys.append(item)
+
+    db_worker.close()
 
     if int(message.text) < 1 or int(message.text) > i:
         bot.send_message(message.chat.id, "Введите число с клавиатуры")
@@ -96,42 +110,54 @@ def result_handler(message):
             return
 
     bot.send_message(message.chat.id, "странно, твоего ответа нет")
+    db_worker.close()
     reset(message)
 
 
 @bot.message_handler(func=lambda message: True, content_types=['text'])
 def check_answer(message):
+    if message.text is None:
+        return
+
     print(message.chat.id)
     db_worker = SQLighter(config.database_name)
-    keyboard_hider = types.ReplyKeyboardRemove()
-    # Если функция возвращает None -> Человек не в игре
     t_num = testNumFile.get_test_num(message.chat.id)
     q_num = questionNumFile.get_question_num(message.chat.id)
-    userSum = userSumFile.get_user_sum(message.chat.id)
-    # Как Вы помните, answer может быть либо текст, либо None
-    # Если None:
     if message.text == '/reset' or message.text == '/start':
-        reset(massage)
+        keyboard_hider = types.ReplyKeyboardRemove()
+        db_worker.close()
+        reset(message)
     elif t_num is None:
         bot.send_message(message.chat.id, 'Чтобы пройти тест напишите /start')
+        db_worker.close()
     elif int(t_num) == 0:
+        keyboard_hider = types.ReplyKeyboardRemove()
+        db_worker.close()
         test_selector(message)
     elif q_num <= db_worker.question_amount(t_num):
         db_worker = SQLighter(config.database_name)
-        bot.send_message(message.chat.id, db_worker.select_question(t_num, q_num)[3])
+        text = str(db_worker.select_question(t_num, q_num)[3]) + '\n'
         a = '{}'.format(db_worker.select_question(t_num, q_num)[4])
         i = 0
-        text = ''
         for item in a.split(','):
             i += 1
             text += str(i) + ') ' + item + '\n'
         markup = utils.generate_markup(i)
         bot.send_message(message.chat.id, text, reply_markup=markup)
         bot.register_next_step_handler(message, question_handler)
+        db_worker.close()
     else:
+        keyboard_hider = types.ReplyKeyboardRemove()
+        db_worker.close()
         result_handler(message)
 
 
 if __name__ == '__main__':
-    random.seed()
-    bot.polling(none_stop=True)
+    while True:
+        try:
+            random.seed()
+            bot.polling(none_stop=True)
+        except Exception as e:
+            print(e)  # или просто print(e) если у вас логгера нет,
+            # или import traceback; traceback.print_exc() для печати полной инфы
+            time.sleep(15)

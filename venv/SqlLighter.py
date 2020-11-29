@@ -24,7 +24,7 @@ class SQLighter:
 
     def select_test_code(self):
         with self.connection:
-            return self.cursor.execute('SELECT TestCode FROM test__name ORDER BY Id').fetchall()
+            return self.cursor.execute('SELECT Id FROM test__name ORDER BY Id').fetchall()
 
     def select_question(self, test_code, test_num):
         with self.connection:
@@ -35,17 +35,6 @@ class SQLighter:
         with self.connection:
             result = self.cursor.execute('SELECT * FROM test_questions WHERE TestCode = ?', (test_code, )).fetchall()
             return len(result)
-
-    # def select_question_answers(self, test_code, test_num):
-    #     with self.connection:
-    #         return self.cursor.execute('SELECT Answers FROM test_questions WHERE TestCode = ? AND QuestionNumber = ?'
-    #                                    , (test_code, test_num,)).fetchall()
-    #
-    # def select_question_keys(self, test_code, test_num):
-    #     with self.connection:
-    #         return self.cursor.execute('SELECT Keys FROM test_questions WHERE TestCode = ? AND QuestionNumber = ?'
-    #                                    , (test_code, test_num,)).fetchall()
-
 
     def test_exist(self):
         with self.connection:

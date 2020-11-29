@@ -19,6 +19,15 @@ def set_question_num(chat_id, i):
         storage[str(chat_id)] = i
 
 
+def inc_question_num(chat_id):
+    with shelve.open(questionNum) as storage:
+        try:
+            storage[str(chat_id)] = storage[str(chat_id)] + 1
+        except KeyError:
+            storage[str(chat_id)] = 1
+            return None
+
+
 def reset_question_num(chat_id):
     with shelve.open(questionNum) as storage:
         try:
