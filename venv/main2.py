@@ -7,6 +7,7 @@ import utils
 import testNumFile
 import userSumFile
 import questionNumFile
+import parser
 from telebot import types
 from SqlLighter import SQLighter
 
@@ -16,10 +17,9 @@ bot = telebot.TeleBot(config.token)
 @bot.message_handler(commands=['start'])
 def start(message):
     reset(message)  # сбрасываем
-    bot.send_message(message.chat.id, 'Привет! Введи номер теста который хочешь пройти')
+    text = 'Привет! Введи номер теста который хочешь пройти:\n'
     testNumFile.set_test_num(message.chat.id, 0)
     db_worker = SQLighter(config.database_name)
-    text = ''
     i = 1
     # выводим список тестов
     for row in (db_worker.select_all_tests()):
@@ -29,6 +29,28 @@ def start(message):
     db_worker.close()
 
 
+@bot.message_handler(commands=['create'])
+def create(message):
+    reset(message)  # сбрасываем
+    text = 'Чтобы добавить свой текст введите его в соответствуюшем формате:\n' \
+           'Тест про кошек\n' \
+           '1)Какая ты кошка?;глотка шорсный,пушистый,лысый;3,2,1\n' \
+           '2)Где ты живешь?;спб,мск;1,0\n' \
+           '3)Любишь бегать?;да,нет;1,0\n' \
+           '4)Что любишь Кушать?;сосиски,молоко;2,1\n' \
+           'Хороший кот;5;7\n' \
+           'Нормальный кот;2;4\n' \
+           'Не кот;0;1'
+    bot.send_message(message.chat.id, text)
+    bot.register_next_step_handler(message, parse)
+
+
+def parse(message):
+    if message.text == '/reset' or message.text == '/start':
+        return
+    bot.send_message(message.chat.id, parser.parse_text(message.text))
+
+
 @bot.message_handler(commands=['reset'])
 def reset(message):
     # сбрасываем все данные пользователя в бд
@@ -36,6 +58,18 @@ def reset(message):
     questionNumFile.reset_question_num(message.chat.id)
     userSumFile.reset_user_sum(message.chat.id)
     # check_answer(message)
+
+
+@bot.message_handler(commands=['delete'])
+def delete(message):
+    bot.send_message(message.chat.id, "Введите имя теста который хотите удалить")
+    bot.register_next_step_handler(message, deletion)
+
+
+def deletion(message):
+    db_worker = SQLighter(config.database_name)
+    db_worker.delete_test(message.text)
+    db_worker.close()
 
 
 def test_selector(message):
@@ -92,7 +126,7 @@ def question_handler(message):
     k = '{}'.format(db_worker.select_question(t_num, q_num)[5])
     list_keys = []
     for item in k.split(','):
-        i += 1 # в эту переменную
+        i += 1  # в эту переменную
         list_keys.append(item)
 
     db_worker.close()
@@ -150,12 +184,13 @@ def check_answer(message):
         db_worker.close()
         reset(message)  # сбрасываем данные пользователя
     elif t_num is None:  # если в ячейки ничего нет, то возвращается none, это означает что пользователь не выбрал тест
-        bot.send_message(message.chat.id, 'Чтобы пройти тест напишите /start')
+        bot.send_message(message.chat.id, 'Чтобы пройти тест напишите /start \n'
+                                          'Выйти из любого шага ты можешь по команде /reset')
         db_worker.close()
     elif int(t_num) == 0:
         # нулевой тест появляется после команды старт, это означает что пользователь набрал номер
         # теста и это надо обработать методом тест селектор
-        keyboard_hider = types.ReplyKeyboardRemove() # прячем клавиатуру
+        keyboard_hider = types.ReplyKeyboardRemove()  # прячем клавиатуру
         db_worker.close()
         test_selector(message)
     elif q_num <= db_worker.question_amount(t_num):
@@ -165,7 +200,12 @@ def check_answer(message):
         # из бд получаем строчку с заданным вопросом
         # как видно по схеме бд третья колонка это как раз таки сам вопрос, мы его и добавояем в переменную
         # text
-        text = str(db_worker.select_question(t_num, q_num)[3]) + '\n'
+        try:
+            text = str(db_worker.select_question(t_num, q_num)[3]) + '\n'
+        except Exception:
+            questionNumFile.set_question_num(message.chat.id, q_num + 1)
+            check_answer(message)
+            return
         # а затем мы берем данные из 4й колонки, где сами варианты ответов
         a = '{}'.format(db_worker.select_question(t_num, q_num)[4])
         i = 0

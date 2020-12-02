@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import sqlite3
+
+
 # файл отправляющий запросы к БД с тестами
 
 class SQLighter:
@@ -13,6 +15,11 @@ class SQLighter:
     def select_all_tests(self):
         with self.connection:
             return self.cursor.execute('SELECT NameOfTest FROM test__name ORDER BY Id').fetchall()
+
+    # возвращает названия всех тестов
+    def delete_test(self, name):
+        with self.connection:
+            return self.cursor.execute('DELETE FROM test__name WHERE NameOfTest = ?', (name,)).fetchall()
 
     # возвращает все ключи к заданному тесту
     def select_all_keys(self, test_code):
@@ -40,8 +47,13 @@ class SQLighter:
     # получает общее количество вопросов по заданному тесту
     def question_amount(self, test_code):
         with self.connection:
-            result = self.cursor.execute('SELECT * FROM test_questions WHERE TestCode = ?', (test_code, )).fetchall()
-            return len(result)
+            result = self.cursor.execute('SELECT MAX(QuestionNumber) FROM test_questions WHERE TestCode = ?',
+                                         (test_code,)).fetchall()
+            temp = 0
+            for i in result:
+                for j in i:
+                    temp = int(j)
+            return temp
 
     def close(self):
         """ Закрываем текущее соединение с БД """
