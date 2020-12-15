@@ -267,10 +267,9 @@ def check_answer(message):
 
 
 if __name__ == '__main__':
-    while True:
-        try:
-            bot.polling(none_stop=True)
-        except Exception as e:
-            time.sleep(1)
-            print(e)
-            pass
+    try:
+        bot.polling(none_stop=True)
+    except Exception as e:
+        time.sleep(1)
+        print(e)
+        pass
