@@ -37,5 +37,5 @@ async def test_run_example(controller: BotController, client):
     async with controller.collect(count=1) as response:  # type: Response
         await inline_keyboard.click(pattern="1")
 
-    assert "Выйти из любого шага ты можешь по команде /reset" \
+    assert "Вы также можете создать свой собственный тест по команде /create" \
            in response.full_text

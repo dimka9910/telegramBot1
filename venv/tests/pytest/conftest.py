@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from decouple import config
 from pyrogram import Client
+from config import bot_name
 
 from tgintegration import BotController
 
@@ -41,7 +42,7 @@ async def client() -> Client:
 async def controller(client):
     c = BotController(
         client=client,
-        peer="@dimka9910_bot",
+        peer=bot_name,
         #peer="@BotListBot",
         max_wait=10.0,
         wait_consecutive=0.8,
